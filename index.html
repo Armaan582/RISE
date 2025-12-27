@@ -432,7 +432,10 @@
                 margin-right: auto; /* Pushes content to the left and creates space */
                 gap: 0.8rem;
             }
-            .topbar-brand { margin-right: 1rem; } /* Explicit gap between Text and Icons */
+            .topbar-brand { 
+                display: flex; /* Ensure it is visible */
+                margin-right: 1rem; 
+            } 
             
             /* Ensure Actions stay on right */
             .top-actions { gap: 0.5rem; }
@@ -449,7 +452,6 @@
             #toast-container { bottom: 1rem; right: 1rem; left: 1rem; }
             .toast { width: 100%; justify-content: center; }
         }
-        
     </style>
 </head>
 <body data-theme="light">
@@ -714,6 +716,7 @@
                                     <div class="color-option" style="background:#8b5cf6" onclick="setAccentColor('#8b5cf6')"></div>
                                     <div class="color-option" style="background:#ec4899" onclick="setAccentColor('#ec4899')"></div>
                                     <div class="color-option" style="background:#14b8a6" onclick="setAccentColor('#14b8a6')"></div>
+                                    <div class="color-option" style="background:#f59e0b" onclick="setAccentColor('#f59e0b')"></div>
                                     <div class="color-plus-btn"><i class="ph ph-plus"></i><input type="color" onchange="setAccentColor(this.value)"></div>
                                 </div>
                                 <button class="btn-secondary" style="margin-top:1rem; font-size:0.85rem;" onclick="setAccentColor('#4f46e5')">Reset Default</button>
@@ -766,6 +769,23 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadTheme();
             updateUI();
+            
+            // --- SYNC ACROSS TABS ---
+            window.addEventListener('storage', (event) => {
+                if (event.key && event.key.startsWith('rise_')) {
+                    // Reload state from local storage
+                    state.tasks = JSON.parse(localStorage.getItem('rise_tasks')) || [];
+                    state.schedule = JSON.parse(localStorage.getItem('rise_schedule')) || [];
+                    state.activity = JSON.parse(localStorage.getItem('rise_activity')) || [];
+                    state.events = JSON.parse(localStorage.getItem('rise_events')) || {};
+                    state.user = JSON.parse(localStorage.getItem('rise_user')) || state.user;
+                    state.streak = parseInt(localStorage.getItem('rise_streak') || 1);
+                    
+                    updateUI(); // Refresh UI to match other tab
+                    renderCalendar(); // Refresh calendar events
+                }
+            });
+
             const yearSelect = document.getElementById('cal-year-select');
             const currentYear = new Date().getFullYear();
             for(let i = currentYear - 5; i <= currentYear + 5; i++) {
@@ -795,6 +815,11 @@
         }
 
         async function callGemini(prompt) {
+            // --- OFFLINE CHECK ---
+            if (!navigator.onLine) {
+                return "I am currently offline. Please check your internet connection.";
+            }
+
             if (!apiKey) return "API Key missing. Please add it in the code.";
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
@@ -837,7 +862,7 @@
 
             // Prod Chart Labels
             const chartHtml = ['M','T','W','T','F','S','S'].map((day, i) => {
-                const h = Math.random() * 60 + 20; 
+                const h = Math.random() * 60 + 20; 
                 return `<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px;"><div class="chart-bar ${i===3?'active':''}" style="height:${h}%;"></div><span style="font-size:0.7rem;">${day}</span></div>`;
             }).join('');
             document.getElementById('dash-prod-chart').innerHTML = chartHtml;
@@ -848,7 +873,7 @@
             
             const pendingContainer = document.getElementById('dash-pending-container');
             if(pending === 0) {
-                pendingContainer.style.display = 'none'; 
+                pendingContainer.style.display = 'none'; 
             } else {
                 pendingContainer.style.display = 'block';
                 document.getElementById('dash-pending-count').innerText = pending;
@@ -933,9 +958,9 @@
         function generateScheduleLogic(subStr, hours) {
             showToast("Generating...");
             const subjects = subStr.split(',').map(s=>s.trim());
-            const timePer = (hours * 60) / subjects.length; 
+            const timePer = (hours * 60) / subjects.length; 
             let startHr = 9; let startMin = 0;
-            state.schedule = []; 
+            state.schedule = []; 
             
             subjects.forEach(sub => {
                 const timeStr = `${String(startHr).padStart(2,'0')}:${String(startMin).padStart(2,'0')}`;
@@ -978,7 +1003,7 @@
 
         function updateNotifBadge() {
             const badge = document.getElementById('notif-badge');
-            if(state.notifications.length > 0) { badge.style.display = 'flex'; badge.innerText = state.notifications.length; } 
+            if(state.notifications.length > 0) { badge.style.display = 'flex'; badge.innerText = state.notifications.length; } 
             else { badge.style.display = 'none'; }
         }
 
@@ -1190,4 +1215,3 @@
     </script>
 </body>
 </html>
-
